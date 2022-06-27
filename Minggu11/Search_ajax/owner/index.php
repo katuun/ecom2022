@@ -8,13 +8,10 @@ if (!isset($_SESSION["login"]) && !isset($_SESSION["user"])) {
 } else {
   $id = $_SESSION["user"];
   $result = query("SELECT * FROM users WHERE id_user = $id")[0];
-  if ($result['roles'] !== 'USER') {
+  if ($result['roles'] !== 'OWNER') {
     header("Location: ../index.php");
   }
 }
-
-
-
 
 ?>
 <!DOCTYPE html>
@@ -33,6 +30,11 @@ if (!isset($_SESSION["login"]) && !isset($_SESSION["user"])) {
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
     <link href="../assets/style/main.css" rel="stylesheet" />
     <link rel="stylesheet" type="text/css" href="../assets/vendor/DataTables/datatables.min.css"/>
+    <style>
+      .dropdown-toggle:focus {
+        outline-style: none;
+      }
+    </style>
   </head>
 
   <body>
@@ -55,24 +57,18 @@ if (!isset($_SESSION["login"]) && !isset($_SESSION["user"])) {
             >
               Dashboard
             </a>
-            <a
-              href="?page=transactions"
-              class="list-group-item list-group-item-action<?= $page == 'transactions' ? ' active' : ''; ?> <?= $page == 'transactions-details' ? ' active' : ''; ?> <?= $page == 'transfer' ? ' active' : ''; ?>"
-            >
-              Transactions
-            </a>
-            <a
-              href="?page=profile"
-              class="list-group-item list-group-item-action<?= $page == 'profile' ? ' active' : ''; ?> <?= $page == 'profile-details' ? ' active' : ''; ?>"
-            >
-              profile
-            </a>
-            <a
-              href="../index.php"
-              class="list-group-item list-group-item-action<?= $page == 'logout' ? ' active' : ''; ?>"
-            >
-              Back To Home
-            </a>
+            <div class="dropdown">
+              <button class="list-group-item list-group-item-action dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                Transactions
+              </button>
+              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                <a class="dropdown-item" href="?page=transactions">All Transactions</a>
+                <a class="dropdown-item" href="?page=transactions-no-confirm">Belum Konfirmasi</a>
+                <a class="dropdown-item" href="?page=transactions-confirm">Konfirmasi</a>
+                <a class="dropdown-item" href="?page=transactions-pickup">Pick Up</a>
+                <a class="dropdown-item" href="?page=transactions-sent">Terkirim</a>
+              </div>
+            </div>
             <a
               href="?page=logout"
               class="list-group-item list-group-item-action<?= $page == 'logout' ? ' active' : ''; ?>"
@@ -88,61 +84,74 @@ if (!isset($_SESSION["login"]) && !isset($_SESSION["user"])) {
 
           if (isset($page)) {
             if ($page == 'dashboard') {
-              include 'dashboard-user.php';
+              include 'dashboard.php';
             } elseif ($page == 'transactions') {
-              include 'transaction/dashboard-user-transactions.php';
+              include 'transaction/dashboard-transactions.php';
+            } elseif ($page == 'transactions-no-confirm') {
+              include 'transaction/dashboard-transactions-no-confirm.php';
+            } elseif ($page == 'transactions-confirm') {
+              include 'transaction/dashboard-transactions-confirm.php';
+            } elseif ($page == 'transactions-pickup') {
+              include 'transaction/dashboard-transactions-pickup.php';
+            } elseif ($page == 'transactions-sent') {
+              include 'transaction/dashboard-transactions-sent.php';
             } elseif ($page == 'transactions-details') {
-              include 'transaction/dashboard-user-transactions-details.php';
-            } elseif ($page == 'transfer') {
-              include 'transaction/dashboard-user-transfer.php';
-            } elseif ($page == 'profile') {
-              include 'profile/dashboard-user-profile.php';
+              include 'transaction/dashboard-transactions-details.php';
+            } elseif ($page == 'transactions-delete') {
+              include 'transaction/dashboard-transactions-delete.php';
+            } elseif ($page == 'transactions-transfer') {
+              include 'transaction/dashboard-transfer.php';
             } elseif ($page == 'logout') {
               include '../logout.php';
             } else {
               echo "Halaman Tidak Ditemukan";
             }
           } else {
-            include 'dashboard-user.php';
+            include 'dashboard.php';
           }
-          
 
           ?>
         </div>
       </div>
     </div>
 
-     <!-- Modal -->
-     <div class="modal fade" id="terkirim" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <!-- Modal -->
+    <div class="modal fade" id="cetakPDF" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <form action="transaction/report-pdf.php" method="GET">
         <div class="modal-dialog">
           <div class="modal-content">
             <div class="modal-header">
-              <h5 class="modal-title" id="exampleModalLabel">Yakin sudah terkirim ?</h5>
+              <h5 class="modal-title" id="exampleModalLabel">Cetak Laporan PDF</h5>
               <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                 <span aria-hidden="true">&times;</span>
               </button>
             </div>
-            <form action="" method="POST">
-              <div class="modal-body">
-                <div class="row">
-                  <div class="col-md-12">
-                    <input type="hidden" name="id_transaction" value="<?= $transaction["id_transaction"]; ?>">
-                    <div class="form-group">
-                      <label for="penerima">Nama Penerima</label>
-                      <input type="text" name="penerima" id="penerima" class="form-control">
-                    </div>
+            <div class="modal-body">
+              <div class="row" id="tanggal">
+                <div class="col-md-12">
+                  <div class="form-group">
+                    <label for="tanggalAwal">Dari Tanggal :</label>
+                    <input type="date" name="tanggalAwal" id="tanggalAwal" class="form-control">
+                  </div>
+                </div>
+                <div class="col-md-12">
+                  <div class="form-group">
+                    <label for="tanggalAkhir">Sampai Tanggal :</label>
+                    <input type="date" name="tanggalAkhir" id="tanggalAkhir" class="form-control">
                   </div>
                 </div>
               </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                <button type="submit" name="terkirim" class="btn btn-primary">Save changes</button>
-              </div>
-            </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+              <button type="submit" name="filter" class="btn btn-primary">Cetak PDF</button>
+            </div>
           </div>
         </div>
-      </div>
-      </tr>
+      </form>
+    </div>
+
+    
     
 
     <!-- Bootstrap core JavaScript -->
